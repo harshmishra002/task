@@ -17,6 +17,9 @@ interface Booking {
 
 export default function Home() {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -24,12 +27,13 @@ export default function Home() {
     const fetchBookings = () => {
       const storedBookings = JSON.parse(localStorage.getItem("bookings") || "[]");
       setBookings(storedBookings);
+      setFilteredBookings(storedBookings);
     };
 
-    fetchBookings(); // Load bookings on initial render
+    fetchBookings();
 
     const handleStorageChange = () => {
-      fetchBookings(); // Update bookings when localStorage changes
+      fetchBookings();
     };
 
     window.addEventListener("storage", handleStorageChange);
@@ -39,7 +43,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetch("/bookings.json") // Ensure this path matches the location in the public directory
+    fetch("/bookings.json")
       .then((res) => {
         if (!res.ok) {
           throw new Error(`HTTP error! Status: ${res.status}, URL: ${res.url}`);
@@ -47,8 +51,8 @@ export default function Home() {
         return res.json();
       })
       .then((data: Booking[]) => {
-        console.log("Fetched bookings:", data);
         setBookings(data);
+        setFilteredBookings(data);
       })
       .catch((err) => {
         console.error("Error fetching bookings:", err);
@@ -78,22 +82,78 @@ export default function Home() {
     };
   }, []);
 
+  const filterBookings = () => {
+    const filtered = bookings.filter((booking) => {
+      const pickupDate = new Date(booking.pickupDateTime);
+      const dropoffDate = new Date(booking.dropoffDateTime);
+      const start = startDate ? new Date(startDate) : null;
+      const end = endDate ? new Date(endDate) : null;
+
+      if (start && end) {
+        return pickupDate >= start && dropoffDate <= end;
+      }
+      if (start) {
+        return pickupDate >= start;
+      }
+      if (end) {
+        return dropoffDate <= end;
+      }
+      return true;
+    });
+
+    setFilteredBookings(filtered);
+  };
+
   return (
-    <div className="flex">
+    <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-6">
-        {error ? (
-          <div className="text-red-500">{error}</div>
-        ) : (
-          <>
-            <StatsSection bookings={bookings} />
-            <BookingTable
-              bookings={bookings}
-              onRowClick={(id) => router.push(`/bookings/${id}`)}
-            />
-          </>
-        )}
-      </main>
+      <div className="flex-1 flex flex-col">
+        {/* Navbar matching Sidebar theme */}
+        <div className="w-full bg-gray-900 text-white px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between shadow-md">
+          <h1 className="text-lg font-semibold">Welcome to the Booking Dashboard</h1>
+          <p className="text-sm text-gray-300 mt-1 sm:mt-0">
+            "Streamlining your ride – one booking at a time."
+          </p>
+        </div>
+
+        {/* Main content */}
+        <main className="flex-1 p-6">
+          {error ? (
+            <div className="text-red-500">{error}</div>
+          ) : (
+            <>
+              <StatsSection bookings={filteredBookings} />
+
+              {/* Date Filter */}
+              <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="border rounded px-3 py-2 text-sm w-full sm:w-auto"
+                />
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="border rounded px-3 py-2 text-sm w-full sm:w-auto"
+                />
+                <button
+                  onClick={filterBookings}
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition w-full sm:w-auto"
+                >
+                  Filter
+                </button>
+              </div>
+
+              <BookingTable
+                bookings={filteredBookings}
+                onRowClick={(id) => router.push(`/bookings/${id}`)}
+              />
+            </>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
