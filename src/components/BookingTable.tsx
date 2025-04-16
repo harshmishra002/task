@@ -10,6 +10,7 @@ interface Booking {
   status: string;
 }
 
+
 interface BookingTableProps {
   bookings: Booking[];
   onRowClick?: (id: string) => void;
